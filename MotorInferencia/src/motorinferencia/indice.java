@@ -13,12 +13,10 @@ public class indice {
         file=new RandomAccessFile("indice","rw");
         tamaño=file.length();
         if(tamaño==0){
-            System.out.println("aqui entre");
             existe=-1;
             posicion=1;
         }
         else {
-            System.out.println("aqui entre 2");
             for (i=0;i<tamaño/8;i++){
                 llaveLeida=file.readInt();
                 if(llave==llaveLeida){

@@ -177,9 +177,8 @@ public class Maestro {
         RandomAccessFile Maestro = new RandomAccessFile("Maestro", "rw");
         Scanner entrada = new Scanner(System.in);
         indice in = new indice();
-        
-        System.out.println("ingrese la regla a actualizar");
-        llave = entrada.nextInt();
+
+        llave = Integer.parseInt(JOptionPane.showInputDialog(null, "Escribe el numero de regla a actualizar", "Numero de Regla", 1));
 
         posicion = in.buscarIndice(llave);
         longitud = desplazamiento();
@@ -187,16 +186,15 @@ public class Maestro {
         desplazamiento = (pos - 1) * longitud;
         Maestro.seek(desplazamiento);
         Maestro.readInt();
-        
-        System.out.println("ingrese las premisas separadas por una coma p1,p2,p3");
-        premisa = entrada.next();
+
+        premisa = JOptionPane.showInputDialog(null, "Escribe las premisas separadas por comas, por ejemplo: (p1,p2,p3)", "Ingresa las premisas", 2);
+
         aux = premisa.split(",");
         for (int i = 0; i < aux.length; i++) {
             premisas[i] = aux[i];
         }
-        
+
         //Esto es un cambio hasta el siguiente comentario  de cierre de cambio
-        
         for (n = 0; n < configuracion; n++) {
             if (premisas[n] != null) {
                 dato = premisas[n];
@@ -218,56 +216,104 @@ public class Maestro {
         datos.setLength(largo);
         prueba = datos.toString();
         Maestro.writeChars(prueba);
-        System.out.println("ingrese la salida !solo una premisa!");
-        dato = entrada.next();
+        dato = JOptionPane.showInputDialog(null, "Escribe la premisa de salida (Solo una premisa).", "Consecuente", 1);
         datos = new StringBuffer(dato);
         datos.setLength(largo);
         prueba = datos.toString();
         Maestro.writeChars(prueba);
         Maestro.close();
     }
-    
-    
-    
+
     /*
         INTERFAZ GRÁFICA
-    */
-    
+     */
     public void escribirMaestroInterfaz() throws IOException {
         int bandera = 1, llave, n;
         int[] res;
         String[] aux;
-
         StringBuffer datos;
         long tamaño;
-        String premisa, salida, prueba, dato;
+        String premisa, prueba, dato;
         RandomAccessFile Maestro;
-        Scanner entrada = new Scanner(System.in);
+
         do {
             String[] premisas = new String[configuracion];
             Maestro = new RandomAccessFile("Maestro", "rw");
             tamaño = Maestro.length();
             Maestro.seek(tamaño);//nos vamos hasta el final del archivo
-            llave = Integer.parseInt(JOptionPane.showInputDialog(null, "Escribe el numero de regla", "Numero de Regla"));
+            llave = Integer.parseInt(JOptionPane.showInputDialog(null, "Escribe el numero de regla", "Numero de Regla", 1));
             res = indice.buscarIndice(llave);
+
+            System.out.println("Llave: " + llave);
+            System.out.println("Activa: " + res[0]);
+            System.out.println("Posic: " + res[1]);
+
             if (res[0] == 1) {
-                int dialogResult = JOptionPane.showConfirmDialog (null, "La regla ya existe", "Regla Existente", JOptionPane.YES_NO_OPTION);
-                if(dialogResult == JOptionPane.YES_OPTION){
-                    System.out.println("Dialogo YES");
+                int dialogResult = JOptionPane.showConfirmDialog(null, "La regla ya existe, ¿Quieres intentar con otra llave?", "Regla Existente", JOptionPane.YES_NO_OPTION);
+                if (dialogResult == JOptionPane.YES_OPTION) {
                     bandera = 1;
-                } else
+                } else {
                     bandera = 0;
+                }
+            } else if (res[0] == -1 && llave == res[1]) {
+                Long desplazamiento = (llave - 1) * desplazamiento();
+                try (RandomAccessFile ms = new RandomAccessFile("Maestro", "rw")) {
+                    ms.seek(desplazamiento);
+                    System.out.println(ms.readInt());
+                    indice.escribir_indice(llave);
+                    
+                    premisa = JOptionPane.showInputDialog(null, "Escribe las premisas separadas por comas, por ejemplo: (p1,p2,p3)", "Ingresa las premisas", 2);
+                    aux = premisa.split(",");
+                    for (int i = 0; i < aux.length; i++) {
+                        premisas[i] = aux[i];
+                    }
+
+                    //Esto es un cambio hasta el siguiente comentario  de cierre de cambio
+                    for (n = 0; n < configuracion; n++) {
+                        if (premisas[n] != null) {
+                            dato = premisas[n];
+                            datos = new StringBuffer(dato);
+                            datos.setLength(largo);
+                            prueba = datos.toString();
+                            ms.writeChars(prueba);
+                        } else {
+                            dato = "Pv";
+                            datos = new StringBuffer(dato);
+                            datos.setLength(largo);
+                            prueba = datos.toString();
+                            ms.writeChars(prueba);
+                        }
+                    }//fin for cuando salga del for ya tiene que haber escrito todas las premisas ingresadas
+
+                    dato = "->";
+                    datos = new StringBuffer(dato);
+                    datos.setLength(largo);
+                    prueba = datos.toString();
+                    ms.writeChars(prueba);
+                    dato = JOptionPane.showInputDialog(null, "Escribe la premisa de salida (Solo una premisa).", "Consecuente", 1);
+                    datos = new StringBuffer(dato);
+                    datos.setLength(largo);
+                    prueba = datos.toString();
+                    ms.writeChars(prueba);
+                    ms.close();
+                    Maestro.close();
+                    int dialogResult = JOptionPane.showConfirmDialog(null, "Ingresar otra regla", "¿Deseas ingresar otra regla?", JOptionPane.YES_NO_OPTION);
+                    if (dialogResult == JOptionPane.YES_OPTION) {
+                        bandera = 1;
+                    } else {
+                        bandera = 0;
+                    }
+                }
             } else {
                 indice.escribir_indice(llave);//escribimos la entrada en el indice
                 Maestro.writeInt(llave);//escribimos la regla en el maestro
-                System.out.println("ingrese las premisas separadas por una coma p1,p2,p3");
-                premisa = JOptionPane.showInputDialog(null, "Escribe las premisas separadas por comas, por ejemplo: (p1,p2,p3)", "Ingresa las premisas");
+                premisa = JOptionPane.showInputDialog(null, "Escribe las premisas separadas por comas, por ejemplo: (p1,p2,p3)", "Ingresa las premisas", 2);
                 aux = premisa.split(",");
                 for (int i = 0; i < aux.length; i++) {
                     premisas[i] = aux[i];
                 }
-                //Esto es un cambio hasta el siguiente comentario  de cierre de cambio
 
+                //Esto es un cambio hasta el siguiente comentario  de cierre de cambio
                 for (n = 0; n < configuracion; n++) {
                     if (premisas[n] != null) {
                         dato = premisas[n];
@@ -284,24 +330,24 @@ public class Maestro {
                         Maestro.writeChars(prueba);
                     }
                 }//fin for cuando salga del for ya tiene que haber escrito todas las premisas ingresadas
+
                 dato = "->";
                 datos = new StringBuffer(dato);
                 datos.setLength(largo);
                 prueba = datos.toString();
                 Maestro.writeChars(prueba);
-                System.out.println("ingrese la salida !solo una premisa!");
-                dato = JOptionPane.showInputDialog(null, "Escribe la premisa de salida", "Salida");
+                dato = JOptionPane.showInputDialog(null, "Escribe la premisa de salida (Solo una premisa).", "Consecuente", 1);
                 datos = new StringBuffer(dato);
                 datos.setLength(largo);
                 prueba = datos.toString();
                 Maestro.writeChars(prueba);
                 Maestro.close();
-                int dialogResult = JOptionPane.showConfirmDialog (null, "Ingresar otra regla", "¿Deseas ingresar otra regla?", JOptionPane.YES_NO_OPTION);
-                if(dialogResult == JOptionPane.YES_OPTION){
-                    System.out.println("Dialogo YES");
+                int dialogResult = JOptionPane.showConfirmDialog(null, "Ingresar otra regla", "¿Deseas ingresar otra regla?", JOptionPane.YES_NO_OPTION);
+                if (dialogResult == JOptionPane.YES_OPTION) {
                     bandera = 1;
-                } else
+                } else {
                     bandera = 0;
+                }
             }//fin else
         } while (bandera != 0);
     }

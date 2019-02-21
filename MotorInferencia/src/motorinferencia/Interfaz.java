@@ -11,77 +11,101 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 
 public class Interfaz extends javax.swing.JFrame {
-    
-    RandomAccessFile Maestro = new RandomAccessFile("Maestro", "r"), IndicePremisas = new RandomAccessFile("indicePremisas", "r");
-    Long longitud = Maestro.length(), longitud2 = IndicePremisas.length();
+
+    RandomAccessFile Maestro, IndicePremisas;
+    Long longitud, longitud2;
     String regla = "", premisa = "", cc = "", hechos = "";
     String[] reglas, resolucion, columnNames = {"No.", "Regla"}, columnNames2 = {"Evento", "Descripción"};
     DefaultListModel dlm, dlm2;
-    Object[][] seleccion = new Object[longitud2.intValue()/20][2];//aquí irá premisas
+    Object[][] seleccion;//aquí irá premisas
     Object[][] lista;//aquí irá premisas
-    Object[][] data = new Object[longitud.intValue()][2];
+    Object[][] data;
     TableColumn tc;
     int z = 0, j = 0;
     DefaultTableModel model;
+    Maestro mas = new Maestro();
+    indice ind = new indice();
 
     public Interfaz() throws FileNotFoundException, IOException {
         initComponents();
-        
+
+        Maestro = new RandomAccessFile("Maestro", "r");
+        IndicePremisas = new RandomAccessFile("indicePremisas", "r");
+
+        longitud = Maestro.length();
+        longitud2 = IndicePremisas.length();
+
+        Maestro.close();
+        IndicePremisas.close();
+
+        data = new Object[longitud.intValue()][2];
+        seleccion = new Object[longitud2.intValue() / 20][2];
+
         model = (DefaultTableModel) tblJustificacion.getModel();
+        model.setRowCount(0);
+
         actualizarContenido();
     }
-    
-    public void actualizarContenido() throws FileNotFoundException, IOException{
-        RandomAccessFile Ma = new RandomAccessFile("Maestro", "r"); 
-        data = new Object[longitud.intValue()][2];
-        DefaultTableModel dtm = new DefaultTableModel(data, columnNames);
 
-        for(int o=0; o<10; o++){
-            for(int i=0; i<dtm.getRowCount(); i++){
-                dtm.removeRow(i);
-            }
-        }
-        tableReglas.setModel(dtm);
-        
+    public void actualizarContenido() throws FileNotFoundException, IOException {
+        RandomAccessFile Ma = new RandomAccessFile("Maestro", "r");
+        data = new Object[longitud.intValue()][2];
+        int[] pos;
+        DefaultTableModel dtm = new DefaultTableModel(data, columnNames);
+        dtm.setRowCount(0);
+
         for (int i = 0; i < longitud / 28; i++) {
             data[i][0] = Ma.readInt();
             for (int j = 0; j < 6; j++) {
                 premisa += Ma.readChar();
                 premisa += Ma.readChar();
-                System.out.println();
                 premisa += " ";
-                if (!premisa.equals("Pv "))
+                if (!premisa.equals("Pv ")) {
                     regla += premisa;
+                }
                 premisa = "";
             }
             data[i][1] = regla;
             regla = "";
-            dtm = new DefaultTableModel(data, columnNames);
-            tableReglas.setModel(dtm);
+            Object[] fila = new Object[2];
+            fila[0] = data[i][0];
+            fila[1] = data[i][1];
+            pos = ind.buscarIndice((int) fila[0]);
+            if(pos[0] != -1)
+                dtm.addRow(fila);
         }
         Ma.close();
 
+        tableReglas.setModel(dtm);
+
         RandomAccessFile IP = new RandomAccessFile("indicePremisas", "r");
-        
+
         longitud2 = IP.length();
-        
-        lista = new Object[longitud2.intValue()/20][2];
-        System.out.println("Tamaño de la lista = " + lista.length);
-        
+
+        lista = new Object[longitud2.intValue() / 20][2];
+        System.out.println("Tamaño de la lista = " + lista.length + "\n-------------------------");
+
         for (int i = 0; i < longitud2 / 20; i++) {
             lista[i][0] = IP.readChar() + "" + IP.readChar();
             lista[i][1] = IP.readInt() + "," + IP.readInt() + "," + IP.readInt() + "," + IP.readInt();
         }
-        
+
         dlm = new DefaultListModel();
         dlm2 = new DefaultListModel();
-        
-        for (int i = 0; i < lista.length; i++)
+
+        for (int i = 0; i < lista.length; i++) {
             dlm.addElement(lista[i][0]);
+        }
 
         listHPo.setModel(dlm);
-        
+        listHPr.setModel(dlm2);
+
         IP.close();
+
+        hechos = "";
+
+        model.setRowCount(0);
+        tblJustificacion.setModel(model);
     }
 
     @SuppressWarnings("unchecked")
@@ -103,10 +127,11 @@ public class Interfaz extends javax.swing.JFrame {
         jScrollPane4 = new javax.swing.JScrollPane();
         tblJustificacion = new javax.swing.JTable();
         jLabel5 = new javax.swing.JLabel();
-        jButton3 = new javax.swing.JButton();
+        btnActualizar = new javax.swing.JButton();
         btnResolver = new javax.swing.JButton();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
+        btnAgregar = new javax.swing.JButton();
+        btnActualizarContenido = new javax.swing.JButton();
+        btnBorrarRegla = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -182,7 +207,12 @@ public class Interfaz extends javax.swing.JFrame {
 
         jLabel5.setText("Justificación");
 
-        jButton3.setText("Actualizar Conocimiento");
+        btnActualizar.setText("Actualizar Conocimiento");
+        btnActualizar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnActualizarActionPerformed(evt);
+            }
+        });
 
         btnResolver.setText("Resolver");
         btnResolver.addActionListener(new java.awt.event.ActionListener() {
@@ -191,17 +221,24 @@ public class Interfaz extends javax.swing.JFrame {
             }
         });
 
-        jButton1.setText("Agregar Conocimiento");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        btnAgregar.setText("Agregar Conocimiento");
+        btnAgregar.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                btnAgregarActionPerformed(evt);
             }
         });
 
-        jButton2.setText("Actualizar Contenido");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
+        btnActualizarContenido.setText("Actualizar Contenido");
+        btnActualizarContenido.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
+                btnActualizarContenidoActionPerformed(evt);
+            }
+        });
+
+        btnBorrarRegla.setText("Borrar Regla");
+        btnBorrarRegla.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnBorrarReglaActionPerformed(evt);
             }
         });
 
@@ -212,54 +249,54 @@ public class Interfaz extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(105, 105, 105)
-                                .addComponent(jLabel2))
-                            .addGroup(layout.createSequentialGroup()
-                                .addContainerGap()
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 219, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(27, 27, 27)
-                                .addComponent(jButton2)))
-                        .addGap(44, 44, 44)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(btnDel)
-                        .addGap(0, 0, Short.MAX_VALUE))
+                        .addGap(105, 105, 105)
+                        .addComponent(jLabel2))
                     .addGroup(layout.createSequentialGroup()
                         .addContainerGap()
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 219, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(29, 29, 29)
+                        .addComponent(btnActualizarContenido)))
+                .addGap(42, 42, 42)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(btnDel)
+                .addContainerGap(149, Short.MAX_VALUE))
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 648, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(btnActualizar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(btnAgregar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 648, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(btnBorrarRegla)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 233, Short.MAX_VALUE)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jButton3)
-                                    .addComponent(jButton1))
+                                    .addComponent(btnAdd)
+                                    .addComponent(btnResolver))
+                                .addContainerGap(111, Short.MAX_VALUE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(148, 148, 148)
+                                .addComponent(jLabel5)
+                                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel1)
+                                .addGap(173, 173, 173))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel3)
+                                .addGap(60, 60, 60)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addGroup(layout.createSequentialGroup()
-                                        .addGap(148, 148, 148)
-                                        .addComponent(jLabel5))
-                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 333, Short.MAX_VALUE)
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                            .addComponent(btnAdd)
-                                            .addComponent(btnResolver))
-                                        .addGap(101, 101, 101)))))))
-                .addContainerGap(13, Short.MAX_VALUE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addGap(173, 173, 173))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addGap(60, 60, 60)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(10, 10, 10)
-                                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jLabel4))
-                        .addGap(36, 36, 36))))
+                                        .addGap(10, 10, 10)
+                                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(jLabel4))
+                                .addGap(36, 36, 36))))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -287,22 +324,27 @@ public class Interfaz extends javax.swing.JFrame {
                                 .addComponent(btnAdd)
                                 .addGap(36, 36, 36)
                                 .addComponent(btnDel))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jButton2)
-                                .addGap(32, 32, 32)))))
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(30, 30, 30)
+                                .addComponent(btnActualizarContenido)))))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(18, 18, 18)
-                        .addComponent(btnResolver)
-                        .addGap(8, 8, 8)
-                        .addComponent(jLabel5))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
                         .addGap(6, 6, 6)
-                        .addComponent(jButton1)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(btnAgregar)
+                            .addComponent(btnBorrarRegla))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton3)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btnActualizar)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(btnResolver)
+                                .addGap(28, 28, 28))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel5)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))))
                 .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 197, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(22, Short.MAX_VALUE))
         );
@@ -325,9 +367,13 @@ public class Interfaz extends javax.swing.JFrame {
     }//GEN-LAST:event_btnDelActionPerformed
 
     private void btnResolverActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResolverActionPerformed
-        for (int i = 0; i < dlm2.size(); i++) 
+        model.setRowCount(0);
+        hechos = "";
+
+        for (int i = 0; i < dlm2.size(); i++) {
             seleccion[i][0] = dlm2.get(i);
-        
+        }
+
         for (int i = 0; i < lista.length; i++) {
             for (int j = 0; j < seleccion.length; j++) {
                 if (lista[i][0].equals(seleccion[j][0])) {
@@ -336,14 +382,14 @@ public class Interfaz extends javax.swing.JFrame {
                 }
             }
         }
-        
+
         hechos = hechos.substring(0, hechos.length() - 1);
         model.addRow(new Object[]{"Hechos", "[" + hechos + "]"});
         tblJustificacion.setModel(model);
         encadenamiento(seleccion);
     }//GEN-LAST:event_btnResolverActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void btnAgregarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAgregarActionPerformed
         Maestro m = new Maestro();
         try {
             m.escribirMaestroInterfaz();
@@ -351,15 +397,164 @@ public class Interfaz extends javax.swing.JFrame {
         } catch (IOException ex) {
             Logger.getLogger(Interfaz.class.getName()).log(Level.SEVERE, null, ex);
         }
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event_btnAgregarActionPerformed
 
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+    private void btnActualizarContenidoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnActualizarContenidoActionPerformed
         try {
+            actualizarContenido();
             actualizarContenido();
         } catch (IOException ex) {
             Logger.getLogger(Interfaz.class.getName()).log(Level.SEVERE, null, ex);
         }
-    }//GEN-LAST:event_jButton2ActionPerformed
+    }//GEN-LAST:event_btnActualizarContenidoActionPerformed
+
+    private void btnActualizarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnActualizarActionPerformed
+        try {
+            if (tableReglas.getSelectedRow() >= 0) {
+                RandomAccessFile Ma = new RandomAccessFile("Maestro", "rw");
+                String aux[] = new String[6], nuevo[] = new String[6];
+                Long desplazamiento = tableReglas.getSelectedRow() * mas.desplazamiento(), apuntador;
+                boolean res = false, pv = true;
+                String prm = "", nueva = "", modif = "";
+                int llave;
+
+                Ma.seek(desplazamiento);
+
+                Ma.readInt();
+                for (int j = 0; j < 6; j++) {
+                    premisa += Ma.readChar();
+                    premisa += Ma.readChar();
+                    aux[j] = premisa;
+                    nuevo[j] = premisa;
+                    premisa = "";
+                }
+
+                apuntador = Ma.getFilePointer();
+                Ma.seek(apuntador - mas.desplazamiento());
+                llave = Ma.readInt();
+
+                for (int i = 0; i < aux.length; i++) {
+                    if (!aux[i].equals("Pv")) {
+                        prm = prm + aux[i] + " ";
+                    }
+                }
+
+                OUTER:
+                for (int i = 0; i < 6; i++) {
+                    for (int j = 0; j < nuevo.length; j++) {
+                        if (!nuevo[j].equals("Pv")) {
+                            nueva = nueva + nuevo[j] + " ";
+                        }
+                    }
+
+                    if (!aux[i].equals("->") && !res) {
+                        if (!aux[i].equals("Pv") && !aux[i].equals("->")) {
+                            int dialogResult = JOptionPane.showConfirmDialog(null, "Regla " + llave + ":\nActual: " + prm + "\nNueva: " + nueva + "\n\n¿Deseas modificar la premisa { " + aux[i] + " }?", "Modificar premisa", JOptionPane.YES_NO_CANCEL_OPTION);
+                            switch (dialogResult) {
+                                case JOptionPane.YES_OPTION:
+                                    modif = JOptionPane.showInputDialog(null, "Modificar premisa " + aux[i] + ": (Maximo 2 caracteres)", "Modificar Premisa", JOptionPane.INFORMATION_MESSAGE);
+                                    if (!modif.equals("")) {
+                                        nuevo[i] = modif;
+                                    } else {
+                                        nuevo[i] = "Pv";
+                                    }
+                                    break;
+                                case JOptionPane.NO_OPTION:
+                                    nuevo[i] = aux[i];
+                                    break;
+                                case JOptionPane.CANCEL_OPTION:
+                                    break OUTER;
+                                default:
+                                    break;
+                            }
+                        } else if (aux[i].equals("Pv") && !aux[i].equals("->") && pv) {
+                            int dialogResult = JOptionPane.showConfirmDialog(null, "Regla " + llave + ":\nActual: " + prm + "\nNueva: " + nueva + "\n\n¿Deseas agregar otra premisa? (Se pueden tener hasta 4)", "Agregar premisa", JOptionPane.YES_NO_CANCEL_OPTION);
+                            switch (dialogResult) {
+                                case JOptionPane.YES_OPTION:
+                                    nuevo[i] = JOptionPane.showInputDialog(null, "Agregar premisa (Maximo 2 caracteres)", "Agregar Premisa", JOptionPane.INFORMATION_MESSAGE);
+                                    break;
+                                case JOptionPane.NO_OPTION:
+                                    pv = false;
+                                    break;
+                                case JOptionPane.CANCEL_OPTION:
+                                    break OUTER;
+                                default:
+                                    break;
+                            }
+                        }
+                    } else if (aux[i].equals("->") && !res) {
+                        res = true;
+                    } else if (res) {
+                        int dialogResult = JOptionPane.showConfirmDialog(null, "Regla " + llave + ":\nActual: " + prm + "\nNueva: " + nueva + "\n\n¿Deseas modificar el consecuente? { " + aux[i] + " }", "Modificar Consecuente", JOptionPane.YES_NO_CANCEL_OPTION);
+                        switch (dialogResult) {
+                            case JOptionPane.YES_OPTION:
+                                do {
+                                    nuevo[i] = JOptionPane.showInputDialog(null, "Modificar consecuente " + aux[i] + ": (Maximo 2 caracteres)", "Modificar Premisa", JOptionPane.INFORMATION_MESSAGE);
+                                } while (nuevo[i].equals(""));
+                                break;
+                            case JOptionPane.NO_OPTION:
+                                break;
+                            case JOptionPane.CANCEL_OPTION:
+                                break OUTER;
+                            default:
+                                break;
+                        }
+                    }
+                    nueva = "";
+                }
+
+                for (int i = 0; i < nuevo.length; i++) {
+                    if (!nuevo[i].equals(aux[i])) {
+                        Ma.writeChar(nuevo[i].charAt(0));
+                        Ma.writeChar(nuevo[i].charAt(1));
+                        System.out.println("Busqueda para IndicePremisa donde \nLlave: " + llave + "\nHecho/Premisa: " + nuevo[i] + "\n");
+                    } else {
+                        Ma.readChar();
+                        Ma.readChar();
+                    }
+                }
+                Ma.close();
+                actualizarContenido();
+            } else {
+                System.out.println("Ninguna regla seleccionada");
+            }
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(Interfaz.class
+                    .getName()).log(Level.SEVERE, null, ex);
+
+        } catch (IOException ex) {
+            Logger.getLogger(Interfaz.class
+                    .getName()).log(Level.SEVERE, null, ex);
+        }
+
+
+    }//GEN-LAST:event_btnActualizarActionPerformed
+
+    private void btnBorrarReglaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBorrarReglaActionPerformed
+        try {
+            indice i = new indice();
+            Maestro m = new Maestro();
+            Long desplazamiento;
+            RandomAccessFile Ma = new RandomAccessFile("Maestro", "r");
+            int llave;
+            if (tableReglas.getSelectedRow() >= 0) {
+                desplazamiento = tableReglas.getSelectedRow() * m.desplazamiento();
+                Ma.seek(desplazamiento);
+                llave = Ma.readInt();
+
+                int dialogResult = JOptionPane.showConfirmDialog(null, "Borrar Regla", "¿Estas seguro que deseas borrar la regla " + llave + "?", JOptionPane.YES_NO_OPTION);
+                if (dialogResult == JOptionPane.YES_OPTION) {
+                    i.borrarIndice(llave);
+                    actualizarContenido();
+                }
+            } else {
+                System.out.println("Ninguna regla seleccionada");
+            }
+            Ma.close();
+        } catch (IOException ex) {
+            Logger.getLogger(Interfaz.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_btnBorrarReglaActionPerformed
 
     void encadenamiento(Object[][] hI) {
         String cc = generaCC(hI);
@@ -372,7 +567,7 @@ public class Interfaz extends javax.swing.JFrame {
         } else {
             String[] reglas = cc.split(",");
             resolucion = new String[hI.length * 4];
-            
+
             for (int i = 0; i < reglas.length; i++) {
                 if (!reglas[i].equals("-1")) {
                     resolucion[j] = reglas[i];
@@ -392,7 +587,7 @@ public class Interfaz extends javax.swing.JFrame {
                             if (ant[k].equals(hT[n])) {
                                 coincidencia++;
                             } else {
-                                
+
                             }
                         }
                     }
@@ -414,7 +609,7 @@ public class Interfaz extends javax.swing.JFrame {
                         if (!existe(nH, hechos)) {
                             hechos += "," + nH;
                         }
-                        
+
                         Object[][] nhs = new Object[3][2];//aquí irá premisas
                         nhs[0][0] = nH;
                         for (int j = 0; j < lista.length; j++) {
@@ -431,8 +626,9 @@ public class Interfaz extends javax.swing.JFrame {
 
     boolean existe(String este, String aqui) {
         int pos = aqui.indexOf(este);
-        if (pos != -1)
+        if (pos != -1) {
             return true;
+        }
         return false;
     }
 
@@ -440,21 +636,23 @@ public class Interfaz extends javax.swing.JFrame {
         String cc = "", regla = "";
         String[] reglas;
         int j = 0;
-        
-        for (int i = 0; i < hI.length; i++) 
-            if (hI[i][1] != null)
+
+        for (int i = 0; i < hI.length; i++) {
+            if (hI[i][1] != null) {
                 cc += hI[i][1] + ",";
-        
+            }
+        }
+
         reglas = cc.split(",");
         cc = "";
-        
+
         for (int i = 0; i < reglas.length; i++) {
             if (!reglas[i].equals("-1")) {
                 cc += reglas[i] + ",";
                 j++;
             }
         }
-        
+
         cc = cc.substring(0, cc.length() - 1);
         return cc;
     }
@@ -463,18 +661,20 @@ public class Interfaz extends javax.swing.JFrame {
         char fC = cc.charAt(0);
         int cont = 0;
         String newS = "";
-        
+
         for (int j = 0; j < cc.length(); j++) {
             for (int i = 1; i < cc.length(); i++) {
-                if (fC == cc.charAt(j)) 
+                if (fC == cc.charAt(j)) {
                     cont++;
-                if (cont == 1) 
+                }
+                if (cont == 1) {
                     newS += cc;
+                }
                 fC = cc.charAt(i);
             }
             cont = 0;
         }
-        
+
         return "";
     }
 
@@ -489,16 +689,24 @@ public class Interfaz extends javax.swing.JFrame {
                 if ("Windows".equals(info.getName())) {
                     javax.swing.UIManager.setLookAndFeel(info.getClassName());
                     break;
+
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Interfaz.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Interfaz.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Interfaz.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Interfaz.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Interfaz.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Interfaz.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
+
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(Interfaz.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Interfaz.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
@@ -507,20 +715,23 @@ public class Interfaz extends javax.swing.JFrame {
             public void run() {
                 try {
                     new Interfaz().setVisible(true);
+
                 } catch (IOException ex) {
-                    Logger.getLogger(Interfaz.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(Interfaz.class
+                            .getName()).log(Level.SEVERE, null, ex);
                 }
             }
         });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnActualizar;
+    private javax.swing.JButton btnActualizarContenido;
     private javax.swing.JButton btnAdd;
+    private javax.swing.JButton btnAgregar;
+    private javax.swing.JButton btnBorrarRegla;
     private javax.swing.JButton btnDel;
     private javax.swing.JButton btnResolver;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
